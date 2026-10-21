@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gaply — Demo interactiva del agente (Trabajo final de IA)</title>
+<style>
+  :root{
+    --bg:#f4f6fb; --card:#ffffff; --ink:#1a2233; --muted:#5b6780;
+    --accent:#4f46e5; --accent2:#0ea5e9; --good:#10b981; --warn:#f59e0b; --bad:#ef4444;
+    --border:#e3e8f2;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"Segoe UI",system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--ink);line-height:1.5}
+  header{background:linear-gradient(135deg,#312e81,#4f46e5 60%,#0ea5e9);color:#fff;padding:22px 28px}
+  header h1{font-size:1.45rem;font-weight:700}
+  header p{opacity:.92;font-size:.92rem;margin-top:4px;max-width:900px}
+  nav{display:flex;flex-wrap:wrap;gap:6px;padding:10px 20px;background:var(--card);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:10}
+  nav button{border:1px solid var(--border);background:#fff;color:var(--ink);padding:8px 14px;border-radius:20px;cursor:pointer;font-size:.88rem;font-weight:600}
+  nav button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+  main{max-width:1100px;margin:0 auto;padding:22px}
+  section{display:none} section.on{display:block}
+  h2{font-size:1.15rem;margin:14px 0 10px;color:#312e81}
+  h3{font-size:1rem;margin:12px 0 8px}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:14px;box-shadow:0 1px 3px rgba(20,30,60,.05)}
+  .muted{color:var(--muted);font-size:.86rem}
+  .tag{display:inline-block;background:#eef2ff;color:#3730a3;border-radius:6px;padding:2px 8px;font-size:.75rem;font-weight:700;margin-right:4px}
+  /* pipeline */
+  .pipe{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:10px 0}
+  .step{background:var(--card);border:2px solid var(--border);border-radius:12px;padding:14px;cursor:pointer;transition:.15s;text-align:center}
+  .step:hover,.step.sel{border-color:var(--accent);transform:translateY(-2px)}
+  .step .num{font-size:.72rem;color:var(--accent);font-weight:800;letter-spacing:.5px}
+  .step .t{font-weight:700;font-size:.95rem;margin:4px 0}
+  .step .tech{font-size:.74rem;color:var(--muted)}
+  #stepDetail{min-height:90px}
+  /* students & gaps */
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+  .chip{border:1px solid var(--border);background:#fff;border-radius:10px;padding:8px 14px;cursor:pointer;font-weight:600;font-size:.88rem}
+  .chip.on{background:#312e81;color:#fff;border-color:#312e81}
+  .gap{border:1px solid var(--border);border-radius:12px;margin-bottom:12px;overflow:hidden;background:#fff}
+  .gap h4{padding:10px 14px;background:#eef2ff;font-size:.92rem;display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px}
+  .gap .body{padding:12px 14px}
+  .rec{padding:10px 0;border-bottom:1px dashed var(--border)}
+  .rec:last-child{border-bottom:none}
+  .rec .line1{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+  .rec .name{font-weight:700}
+  .rec .u{font-weight:800;color:var(--accent);font-variant-numeric:tabular-nums}
+  .bar{height:14px;border-radius:7px;display:flex;overflow:hidden;margin:6px 0 4px;background:#eee}
+  .bar div{height:100%}
+  .s1{background:#4f46e5}.s2{background:#0ea5e9}.s3{background:#10b981}.s4{background:#f59e0b}
+  .legend{font-size:.74rem;color:var(--muted)}
+  details{margin-top:6px}
+  summary{cursor:pointer;font-size:.8rem;color:var(--accent2);font-weight:600}
+  .trace{font-family:Consolas,monospace;font-size:.76rem;background:#0f172a;color:#a5f3fc;border-radius:8px;padding:10px;margin-top:6px;white-space:pre-wrap}
+  .none{background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:12px}
+  .none b{color:#9a3412}
+  /* sliders */
+  .sliders{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .sl{background:#f8fafc;border:1px solid var(--border);border-radius:10px;padding:10px}
+  .sl label{font-size:.82rem;font-weight:700;display:flex;justify-content:space-between}
+  .sl input{width:100%}
+  .metric{display:inline-block;background:#f1f5f9;border-radius:10px;padding:10px 14px;margin:4px 6px 4px 0;min-width:150px}
+  .metric b{display:block;font-size:1.25rem;color:#312e81}
+  table{width:100%;border-collapse:collapse;font-size:.85rem}
+  th,td{border-bottom:1px solid var(--border);padding:8px 6px;text-align:left;vertical-align:top}
+  th{background:#eef2ff;color:#312e81}
+  .badge{border-radius:6px;padding:2px 8px;font-size:.72rem;font-weight:800}
+  .yes{background:#d1fae5;color:#065f46}.no{background:#fee2e2;color:#991b1b}
+  .say{background:#eef2ff;border-left:4px solid var(--accent);padding:10px 12px;border-radius:0 8px 8px 0;margin:8px 0;font-style:italic}
+  footer{text-align:center;color:var(--muted);font-size:.78rem;padding:20px}
+  @media(max-width:760px){.pipe{grid-template-columns:1fr 1fr}.sliders{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Gaply — Demo interactiva del agente</h1>
+  <p>Trabajo final de Inteligencia Artificial · Motor MVP: detección de huecos → PSR → sistema experto (forward chaining) → función de utilidad y ranking. Mueva los pesos y vea cambiar el orden (pestaña 2). El agente ya fue entrenado con datos sintéticos declarados: resultados y métricas en la pestaña 3.</p>
+</header>
+
+<nav>
+  <button class="on" data-t="pipeline">1 · Pipeline</button>
+  <button data-t="demo">2 · Agente en vivo</button>
+  <button data-t="entrena">3 · Entrenamiento</button>
+  <button data-t="match">4 · Matchmaking (equipo)</button>
+  <button data-t="datos">5 · Datos (Firestore)</button>
+  <button data-t="plan">6 · Plan 3 semanas</button>
+</nav>
+
+<main>
+
+<!-- ============ TAB 1: PIPELINE ============ -->
+<section id="pipeline" class="on">
+  <h2>La decisión central del agente (una sola)</h2>
+  <div class="card">
+    <p><b>Dado un hueco H del horario de un estudiante U y un catálogo finito de actividades A, seleccionar y ordenar las actividades que son factibles y maximizan una utilidad explícita U(u,a,h).</b></p>
+    <p class="muted" style="margin-top:6px">Haga clic en cada paso del pipeline para ver qué técnica del curso lo resuelve y por qué.</p>
+  </div>
+  <div class="pipe" id="pipe"></div>
+  <div id="stepDetail" class="card"></div>
+  <div class="card">
+    <h3>¿Por qué un agente de utilidad y no otro tipo de la taxonomía?</h3>
+    <ol style="font-size:.9rem;padding-left:20px">
+      <li><b>La decisión no es binaria.</b> Un agente de metas solo sabe "meta alcanzada"; la meta "asignar algo factible" la cumple cualquier actividad que pase las restricciones duras. Gaply discrimina entre <i>varias opciones válidas</i> → se necesita una medida escalar de calidad.</li>
+      <li><b>El entorno es estocástico</b> (así lo caracterizamos en el avance): no se puede predecir qué elegirá el estudiante → lo maximizable es la <i>utilidad esperada</i>.</li>
+      <li><b>Objetivos múltiples en conflicto</b>: afinidad vs. tiempo vs. compañía vs. modalidad → los pesos explícitos resuelven los trade-offs de forma reproducible.</li>
+      <li><b>Los pesos son parámetros calibrables</b> → es el puente al aprendizaje supervisado de la Fase 2 (la pestaña 2 le deja moverlos).</li>
+    </ol>
+  </div>
+</section>
+
+<!-- ============ TAB 2: DEMO ============ -->
+<section id="demo">
+  <h2>El agente en vivo — demo del motor (datos sintéticos, mismos cálculos que el prototipo Python)</h2>
+  <div class="chips" id="userChips"></div>
+
+  <div class="card">
+    <h3>Pesos de la función de utilidad <span class="muted">(muévalos y vea cambiar el orden)</span></h3>
+    <div class="sliders" id="sliders"></div>
+    <p class="muted" style="margin-top:8px">U(u,a,h) = w₁·similitud intereses + w₂·ajuste temporal + w₃·modalidad + w₄·compañía. Pesos iniciales = hipótesis del equipo; la Fase 2 los calibra con aceptaciones/rechazos reales (aprendizaje supervisado sobre las 4 componentes).</p>
+  </div>
+
+  <div id="gaps"></div>
+
+  <div class="card">
+    <h3>Métricas de esta corrida</h3>
+    <div id="metrics"></div>
+  </div>
+</section>
+
+<!-- ============ TAB 3: ENTRENAMIENTO ============ -->
+<section id="entrena">
+  <h2>Entrenamiento del agente (Colab) — avance con datos sintéticos declarados</h2>
+
+  <div class="card">
+    <h3>Qué se entrenó</h3>
+    <p>La <b>decisión central</b> del agente: dado un hueco y el catálogo, ordenar las actividades factibles por probabilidad de aceptación. Fuente: <code>08_mi_parte_agente_actividades.ipynb</code> (Google Colab — sin instalar nada).</p>
+    <table style="margin-top:10px">
+      <tr><th>Elemento</th><th>Valor</th></tr>
+      <tr><td>Base sintética</td><td>2000 estudiantes + 40 actividades con los <b>catálogos reales de la app</b> (mismos 15 intereses, modalidades y duraciones)</td></tr>
+      <tr><td>Casos etiquetados</td><td>20.000 triplets (estudiante, actividad, hueco)</td></tr>
+      <tr><td>Etiquetas</td><td><b>regla sintética declarada</b> + 5% de ruido a propósito (obliga a generalizar, no a memorizar)</td></tr>
+      <tr><td>Split</td><td>80% entrenamiento / 20% prueba — estratificado, semilla 42</td></tr>
+      <tr><td>Modelo</td><td>Regresión logística (6 variables en escala 0–1, portables a Kotlin)</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>Resultados <span class="muted">(corrida de referencia — pegue las cifras reales de su última ejecución del Colab)</span></h3>
+    <div class="metric"><b>0.53</b>baseline (sin aprender)</div>
+    <div class="metric"><b>0.93</b>accuracy del modelo</div>
+    <div class="metric"><b>+0.40</b>gana sobre el baseline</div>
+    <div class="metric"><b>0.93</b>F1 (precision y recall equilibrados)</div>
+    <table style="margin-top:8px">
+      <tr><th>Métrica</th><th>Valor ref.</th><th>Qué significa</th></tr>
+      <tr><td>Accuracy</td><td>~0.93</td><td>de todos los casos del examen (datos que NO vio), acertó ~93%</td></tr>
+      <tr><td>Precision</td><td>~0.92</td><td>de los que dijo "acepta", ~92% realmente aceptaban (pocos "sí" inventados)</td></tr>
+      <tr><td>Recall</td><td>~0.93</td><td>de los que realmente aceptaban, detectó ~93% (pocos escapes)</td></tr>
+      <tr><td>F1</td><td>~0.93</td><td>promedio honesto de precision y recall</td></tr>
+    </table>
+    <p style="margin-top:10px"><b>Tres marcas para leer estos números:</b></p>
+    <ul style="font-size:.88rem;padding-left:20px">
+      <li><b>Suelo = baseline (~0.53):</b> lo que obtiene quien no estudia (responde siempre la clase común). Si el modelo no le gana, no sirve.</li>
+      <li><b>Techo = ~0.95:</b> con 5% de ruido en las etiquetas el 100% es imposible; el máximo teórico es ~95%. El modelo está a ~2 puntos del techo.</li>
+      <li><b>Malo = accuracy ≤ baseline</b> o F1 &lt; 0.5 con clases balanceadas. (La primera versión quedó en recall 0.03 — se detectó con el baseline y se corrigió el diseño del dataset.)</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3>Qué aprendió el modelo (pesos) — vs. los escritos a mano</h3>
+    <table>
+      <tr><th>Variable</th><th>Peso aprendido</th><th>Lectura</th></tr>
+      <tr><td>intereses_comun_norm</td><td>+0.45</td><td>los intereses mandan (como esperábamos)</td></tr>
+      <tr><td>intereses_jaccard</td><td>+0.35</td><td>lo mismo medido como proporción de coincidencia</td></tr>
+      <tr><td>duracion_norm</td><td><b>−0.17</b></td><td><b>hallazgo:</b> a mayor duración, menos aceptación — algo que la fórmula manual NO codificaba</td></tr>
+      <tr><td>novedad</td><td>+0.02</td><td>no repetir categoría aporta, pero poco</td></tr>
+      <tr><td>llenar_hueco</td><td>+0.01</td><td>casi sin efecto por sí solo</td></tr>
+      <tr><td>modalidad_match</td><td>+0.00</td><td>poco peso en estos datos (se declara, no se oculta)</td></tr>
+    </table>
+    <p class="muted" style="margin-top:8px">Prueba visible del hallazgo — tasa de aceptación por duración en los datos: <b>30–90 min ≈ 50% · 120 min ≈ 41% · 180 min ≈ 3.8%</b>. El modelo tuvo que descubrir el límite de 120 min solo con los ejemplos.</p>
+    <p class="say">"Antes los pesos de la utilidad los escribíamos nosotros; ahora los aprendió el modelo, y además encontró algo que no habíamos codificado: las actividades de más de dos horas casi nunca se aceptan."</p>
+  </div>
+
+  <div class="card">
+    <h3>De la nube a la app (puente Kotlin)</h3>
+    <ol style="font-size:.9rem;padding-left:20px">
+      <li>El cuaderno exporta <code>agente_actividades_modelo.json</code>: 6 pesos + 1 intercepto + umbral de decisión 0.5.</li>
+      <li>Verificación incluida: la cuenta a mano (producto punto + sigmoide) da <b>idéntico</b> a scikit-learn en 200 casos — exactamente lo que hará <code>AgenteRecomendacion.kt</code>.</li>
+      <li><b>Pendiente (semana 1):</b> copiar esos 6 pesos al agente Kotlin y re-ejecutar la verificación dentro de la app.</li>
+    </ol>
+  </div>
+
+  <div class="card">
+    <h3>Límites honestos de este avance</h3>
+    <p class="muted">Las etiquetas son <b>sintéticas y declaradas</b>: el 93% demuestra que el pipeline de entrenamiento funciona, <b>no</b> que el 93% de los estudiantes reales acepten. Con el piloto (15–20 estudiantes, semana 2) se reentrena con <b>aceptaciones reales usando este mismo código</b>. Hoy: 0 usuarios, 0 interacciones.</p>
+  </div>
+</section>
+
+<!-- ============ TAB 4: MATCH ============ -->
+<section id="match">
+  <h2>Matchmaking (Decisión 1 del equipo — complemento)</h2>
+  <div class="card">
+    <p class="muted"><b>Decisión 1 del sistema</b> (el match entre estudiantes, entrenado en el cuaderno del equipo). La decisión central del agente —recomendar actividades en un hueco— está en las pestañas 2 y 3.</p>
+    <p class="muted">score = 0.6 · utilidad promedio de la actividad para ambos + 0.4 · similitud de intereses (Jaccard). Umbral de propuesta: 0.50. Los horarios muestran la colocación exacta dentro del hueco compartido.</p>
+    <div id="matchTable" style="margin-top:10px"></div>
+  </div>
+</section>
+
+<!-- ============ TAB 5: DATOS ============ -->
+<section id="datos">
+  <h2>Modelo de datos (Firestore) — qué existe hoy y qué existirá</h2>
+  <div class="card">
+    <h3>Colección <span class="tag">catalogo_actividades</span> — existe HOY (sembrada y curada por el equipo)</h3>
+    <p class="muted"><b>Origen:</b> no hay API institucional, así que el catálogo se levanta manualmente de fuentes públicas del campus (cartelera, páginas de facultad, oficina de actividades). Procedimiento reproducible: si la actividad candidata no tiene los campos obligatorios, no entra.</p>
+    <table style="margin-top:10px">
+      <tr><th>Campo</th><th>Tipo</th><th>Obligatorio</th><th>Origen</th></tr>
+      <tr><td>id</td><td>string (ACT-###)</td><td>sí</td><td>autogenerado</td></tr>
+      <tr><td>nombre</td><td>string</td><td>sí</td><td>levantamiento manual</td></tr>
+      <tr><td>categoria</td><td>enum (7 valores)</td><td>sí</td><td>curaduría del equipo</td></tr>
+      <tr><td>tags_interes</td><td>array&lt;string&gt;</td><td>sí</td><td>mapeo a la taxonomía del onboarding</td></tr>
+      <tr><td>duracion_min</td><td>number</td><td>sí</td><td>dato real de la actividad</td></tr>
+      <tr><td>modalidad</td><td>enum (presencial/online)</td><td>sí</td><td>dato real</td></tr>
+      <tr><td>ubicacion</td><td>string</td><td>sí</td><td>dato real</td></tr>
+      <tr><td>franjas[]</td><td>array&lt;{dia, inicio, fin}&gt;</td><td>sí</td><td>horario real de operación</td></tr>
+      <tr><td>cupo_max / cupo_disponible</td><td>number</td><td>sí</td><td>aforo real</td></tr>
+      <tr><td>estado</td><td>enum (activo/retirado)</td><td>sí</td><td>mantenimiento semanal</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h3>Colección <span class="tag">usuarios</span> — esquema definido, documentos NO existen aún</h3>
+    <table>
+      <tr><th>Campo</th><th>Tipo</th><th>¿Existe hoy?</th></tr>
+      <tr><td>id (Auth), nombre, facultad, carrera, sede</td><td>string</td><td><span class="badge no">no — nace con el primer registro real</span></td></tr>
+      <tr><td>intereses</td><td>array (taxonomía cerrada)</td><td><span class="badge no">no</span></td></tr>
+      <tr><td>duracion_preferida_min, modalidad_preferida</td><td>number / enum</td><td><span class="badge no">no</span></td></tr>
+      <tr><td>bloques_clase</td><td>array&lt;{dia,inicio,fin}&gt;</td><td><span class="badge no">no — ingreso manual, no hay API institucional</span></td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h3>Colección <span class="tag">interacciones</span> — NO existe; es la que habilita la Fase 2</h3>
+    <table>
+      <tr><th>Campo</th><th>Cuándo nace</th></tr>
+      <tr><td>usuario_id, actividad_id, hueco</td><td>al mostrar una recomendación</td></tr>
+      <tr><td>evento (mostrada / aceptada / rechazada / asistio)</td><td>acciones del usuario</td></tr>
+      <tr><td>utilidad_componentes (S, T, M, C)</td><td>al calcular la utilidad — permite entrenar los pesos</td></tr>
+    </table>
+    <p style="margin-top:10px"><b>Estado honesto al 21/10/2026:</b> esquema definido · catálogo de 40 actividades funcionando en versión sintética ✔ (curaduría del catálogo real en curso) · <b>entrenamiento con datos sintéticos ✔ (pestaña 3)</b> · <b>0 usuarios</b> · <b>0 horarios</b> · <b>0 interacciones</b>. Por eso el filtrado colaborativo y K-Means quedan para Fase 2 con umbral: <b>30 usuarios activos y 100 interacciones</b>.</p>
+  </div>
+</section>
+
+<!-- ============ TAB 6: PLAN ============ -->
+<section id="plan">
+  <h2>Hoja de ruta de 3 semanas (hasta la entrega final)</h2>
+  <div class="card">
+    <table>
+      <tr><th>Semana</th><th>Objetivo</th><th>Entregable verificable</th></tr>
+      <tr><td><b>✔ S1</b> (20–26 oct)</td><td>Datos: catálogo operativo y taxonomía de intereses</td><td><b>Hecho con datos sintéticos declarados:</b> catálogo de 40 actividades (campos reales) funcionando en la demo y en el entrenamiento (20.000 casos). Último paso: traspaso a la colección <code>catalogo_actividades</code> en Firestore</td></tr>
+      <tr><td><b>✔ Hecho</b> (21 oct)</td><td>Primera fase de entrenamiento del agente</td><td>Notebook <code>08_mi_parte_agente_actividades.ipynb</code>: baseline vs accuracy, F1, pesos aprendidos exportados a JSON (pestaña 3)</td></tr>
+      <tr><td><b>S2</b> (27 oct–2 nov)</td><td>Piloto con 15–20 estudiantes: registro, horarios manuales, primera corrida real</td><td><code>usuarios</code> poblado; primera tabla real de cobertura de huecos</td></tr>
+      <tr><td><b>S3</b> (3–9 nov)</td><td>Métricas + experimento de Fase 2 + sustentación</td><td>Métricas reales; K-Means/filtrado colaborativo solo si se alcanzó el umbral (positivo o negativo documentado); demo</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h3>Cómo se muestra al profesor (orden de la evidencia)</h3>
+    <ol style="font-size:.9rem;padding-left:20px">
+      <li>Slide del pipeline (pestaña 1) — el mapa que usará para preguntar.</li>
+      <li><b>El agente en vivo</b> (pestaña 2): cambio un interés → cambia el orden; desglose de utilidad y traza de reglas.</li>
+      <li><b>Entrenamiento</b> (pestaña 3): baseline vs accuracy, F1 y pesos aprendidos.</li>
+      <li>Tabla de estado de datos (pestaña 5): honestidad técnica.</li>
+      <li>Plan de 3 semanas con metas numéricas (esta pestaña).</li>
+    </ol>
+    <p class="say">Regla: <b>primero el motor funcionando y el entrenamiento, después el plan</b>. Si el profesor ve la demo antes del plan, sus preguntas pasan de "¿y esto funciona?" a "¿y cómo lo escalan?".</p>
+  </div>
+</section>
+
+</main>
+<footer>Gaply · Iván Santiago García Ñustes · Albeiro José Pérez Terán · Juan Camilo Vargas Rodríguez · Demo interactiva (prototipo Python: <code>prototipo/gaply_mvp.py</code> · entrenamiento: <code>08_mi_parte_agente_actividades.ipynb</code>)</footer>
+
+<script>
+/* ================= DATOS (idénticos a los JSON del prototipo) ================= */
+const CATALOGO=[
+ {id:"ACT-001",nombre:"Grupo de estudio Inteligencia Artificial",categoria:"estudio_grupal",tags:["ia","programacion","mate"],dur:90,modalidad:"presencial",ubicacion:"sede_norte",franjas:[["martes",600,720],["jueves",600,720]],cupo:3},
+ {id:"ACT-002",nombre:"Café interfacultad (networking casual)",categoria:"social",tags:["networking","cafe","social"],dur:60,modalidad:"presencial",ubicacion:"sede_norte",franjas:[["martes",600,840],["miercoles",540,1080]],cupo:5},
+ {id:"ACT-003",nombre:"Fútbol recreativo",categoria:"deporte",tags:["deporte","futbol","social"],dur:90,modalidad:"presencial",ubicacion:"sede_norte",franjas:[["martes",960,1140]],cupo:7},
+ {id:"ACT-004",nombre:"Taller de conversación en inglés",categoria:"idiomas",tags:["ingles","idiomas","social"],dur:60,modalidad:"online",ubicacion:"virtual",franjas:[["martes",600,720],["jueves",480,660]],cupo:9},
+ {id:"ACT-005",nombre:"Torneo universitario de ajedrez",categoria:"deporte_mental",tags:["ajedrez","estrategia","social"],dur:120,modalidad:"presencial",ubicacion:"sede_norte",franjas:[["miercoles",840,1080]],cupo:0},
+ {id:"ACT-006",nombre:"Sesión de yoga en el campus",categoria:"bienestar",tags:["bienestar","deporte","salud"],dur:60,modalidad:"presencial",ubicacion:"sede_norte",franjas:[["martes",420,540],["jueves",420,540]],cupo:6},
+ {id:"ACT-007",nombre:"Meetup de emprendimiento estudiantil",categoria:"networking",tags:["emprendimiento","networking","negocios"],dur:90,modalidad:"presencial",ubicacion:"sede_norte",franjas:[["jueves",600,780]],cupo:11}
+];
+const USUARIOS=[
+ {id:"U-001",nombre:"Ana",facultad:"Ingeniería",carrera:"Ingeniería de Sistemas",sede:"sede_norte",intereses:["ia","programacion","deporte","networking"],durPref:90,modPref:"presencial",clases:[["lunes",420,720],["martes",420,600],["miercoles",420,720],["jueves",720,1020]]},
+ {id:"U-002",nombre:"Luis",facultad:"Ingeniería",carrera:"Ingeniería de Sistemas",sede:"sede_norte",intereses:["ia","networking","ingles","ajedrez"],durPref:90,modPref:"presencial",clases:[["martes",420,600],["miercoles",420,720]]},
+ {id:"U-003",nombre:"Marta",facultad:"Ciencias Sociales",carrera:"Comunicación Social",sede:"sede_norte",intereses:["networking","cafe","social","emprendimiento","ingles"],durPref:60,modPref:"presencial",clases:[["jueves",420,600]]},
+ {id:"U-004",nombre:"Diego",facultad:"Ingeniería",carrera:"Ingeniería Industrial",sede:"sede_norte",intereses:["deporte","futbol","bienestar","salud"],durPref:90,modPref:"presencial",clases:[["martes",420,900],["miercoles",420,720]]}
+];
+const DIAS=["lunes","martes","miercoles","jueves","viernes"],INI=420,FIN=1140,MIND=30,UMB=0.50;
+const REGLAS=[
+ {t:"R1: hueco largo (≥ 90 min) permite actividades extensas",f:()=>"hueco_largo",cnd:(f,h)=>f.has("largo")},
+ {t:"R2: afinidad alta (≥ 2 intereses en común)",f:()=>"afinidad_alta",cnd:(f)=>f.has("a2")},
+ {t:"R3: afinidad media (exactamente 1 interés en común)",f:()=>"afinidad_media",cnd:(f)=>f.has("a1")},
+ {t:"R4: cupo disponible habilita la opción",f:()=>"opción_habilitada",cnd:(f,h)=>h.has("viable")},
+ {t:"R5: recomendable = viable + afinidad (alta o media)",f:()=>"recomendable",cnd:(f,h)=>h.has("viable")&&(f.has("a2")||f.has("a1"))},
+ {t:"R6: hay compañía (otros estudiantes compatibles en ese hueco)",f:()=>"compania_disponible",cnd:(f,h)=>f.has("comp")&&h.has("viable")},
+ {t:"R7: match = recomendable + afinidad alta + compañía",f:()=>"match",cnd:(f,h)=>h.has("recomendable")&&f.has("a2")&&f.has("comp")}
+];
+let PESOS={S:.40,T:.25,M:.15,C:.20};
+let currentUser=0;
+
+/* ================= MOTOR ================= */
+const fmt=m=>`${String(Math.floor(m/60)).padStart(2,"0")}:${String(m%60).padStart(2,"0")}`;
+function huecos(u){
+  const res=[];
+  for(const d of DIAS){
+    const cl=u.clases.filter(c=>c[0]===d).sort((a,b)=>a[1]-b[1]);
+    let cur=INI;
+    for(const c of cl){ if(c[1]-cur>=MIND) res.push({dia:d,ini:cur,fin:c[1],min:c[1]-cur}); cur=Math.max(cur,c[2]); }
+    if(FIN-cur>=MIND) res.push({dia:d,ini:cur,fin:FIN,min:FIN-cur});
+  }
+  return res;
+}
+function duraOK(h,a){return a.dur<=h.min;}
+function operOK(h,a){return a.franjas.some(f=>f[0]===h.dia && Math.max(h.ini,f[1])<=Math.min(h.fin,f[2])-a.dur);}
+function cupoOK(h,a){return a.cupo>0;}
+function sedeOK(u,a){return a.modalidad==="online"||a.ubicacion===u.sede;}
+function restriccion(u,h,a){
+  if(!duraOK(h,a))return"C1_duracion";
+  if(!operOK(h,a))return"C2_operacion";
+  if(!cupoOK(h,a))return"C3_cupo";
+  if(!sedeOK(u,a))return"C4_sede";
+  return null;
+}
+const colocacion=(h,a)=>{for(const f of a.franjas){if(f[0]!==h.dia)continue;const t=Math.max(h.ini,f[1]);if(Math.min(h.fin,f[2])-t>=a.dur)return t;}return null;};
+const inter=(u,a)=>u.intereses.filter(i=>a.tags.includes(i)).length;
+const jaccard=(x,y)=>{const A=new Set(x),B=new Set(y),uni=new Set([...A,...B]);let c=0;A.forEach(v=>B.has(v)&&c++);return uni.size?c/uni.size:0;};
+function comp(u,h,a,all){let n=0;for(const o of all){if(o.id===u.id)continue;
+  for(const h2 of huecos(o)){const sol=h2.dia===h.dia&&h2.ini<h.fin&&h2.fin>h.ini;
+    if(sol&&!restriccion(o,h2,a)){n++;break;}}}return n;}
+function utilidad(u,h,a,nC){
+  const S=Math.min(1,inter(u,a)/3), T=Math.max(0,1-Math.min(1,Math.abs(u.durPref-a.dur)/h.min)),
+        M=a.modalidad===u.modPref?1:0, C=Math.min(1,nC/2);
+  const w=PESOS, tot=w.S*S+w.T*T+w.M*M+w.C*C, s=w.S+w.T+w.M+w.C;
+  return {total:tot/s,parts:[["S",S],["T",T],["M",M],["C",C]]};
+}
+function motor(u,h,a,nC){
+  const f=new Set(["viable"]); if(h.min>=90)f.add("largo");
+  const ov=inter(u,a); if(ov>=2)f.add("a2"); else if(ov===1)f.add("a1");
+  if(a.cupo>0)f.add("cupos"); if(nC>=1)f.add("comp");
+  const hechos=new Set(["viable"]), traza=[];
+  let camb=true;
+  while(camb){camb=false;for(const r of REGLAS){if(!hechos.has(r.f())&&r.cnd(f,hechos)){hechos.add(r.f());traza.push(r.t);}}}
+  return {hechos,traza};
+}
+function recomendar(u){
+  const hs=huecos(u);
+  return hs.map((h,i)=>{
+    const desc={};
+    const cands=CATALOGO.filter(a=>{
+      const r=restriccion(u,h,a); if(r){desc[r]=(desc[r]||0)+1;return false;} return true;
+    }).map(a=>{
+      const nC=comp(u,h,a,USUARIOS), m=motor(u,h,a,nC), v=utilidad(u,h,a,nC);
+      return {...a,nC,hechos:m.hechos,traza:m.traza,util:v.total,parts:v.parts,h};
+    }).filter(a=>a.hechos.has("recomendable"));
+    cands.sort((x,y)=>y.util-x.util);
+    return {h,top:cands.slice(0,3),desc,total:cands.length};
+  });
+}
+function emparejar(){
+  const out=[];
+  for(let i=0;i<USUARIOS.length;i++)for(let j=i+1;j<USUARIOS.length;j++){
+    const u1=USUARIOS[i],u2=USUARIOS[j],sim=jaccard(u1.intereses,u2.intereses);
+    for(const h1 of huecos(u1))for(const h2 of huecos(u2)){
+      if(h1.dia!==h2.dia)continue;
+      const ini=Math.max(h1.ini,h2.ini),fin=Math.min(h1.fin,h2.fin); if(fin-ini<MIND)continue;
+      const hue={dia:h1.dia,ini,fin,min:fin-ini};
+      for(const a of CATALOGO){
+        if(restriccion(u1,hue,a)||restriccion(u2,hue,a))continue;
+        const v1=utilidad(u1,hue,a,1).total,v2=utilidad(u2,hue,a,1).total;
+        const sc=.6*((v1+v2)/2)+.4*sim;
+        if(sc>=UMB){const t=colocacion(hue,a);
+          out.push({par:`${u1.nombre} + ${u2.nombre}`,sim,horario:`${hue.dia} ${fmt(t)}–${fmt(t+a.dur)}`,act:a.nombre,score:sc});}
+      }
+    }
+  }
+  return out.sort((a,b)=>b.score-a.score);
+}
+
+/* ================= UI: PIPELINE ================= */
+const STEPS=[
+ {n:"PASO 1",t:"Percepción",tech:"Agentes: sensores, ciclo percepción–decisión–acción",d:"El 'sensor' del agente: el horario declarado por el estudiante (ingreso manual, no hay API institucional) se convierte en <b>huecos</b>. El día universitario se modela 07:00–19:00 en bloques de 30 min: entorno <b>discreto</b>, tal como se caracterizó en el avance. Cada hueco es la tupla (día, inicio, fin, minutos)."},
+ {n:"PASO 2",t:"PSR — factibilidad",tech:"Diapositiva 7: variables, dominios, restricciones, backtracking",d:"<b>Variables:</b> los huecos del estudiante. <b>Dominios:</b> actividades del catálogo viables en cada hueco (+ ⊥). <b>Restricciones duras:</b> C1 duración ≤ hueco · C2 la actividad puede colocarse dentro del hueco en su franja · C3 cupo &gt; 0 · C4 sede/online. <b>Binarias:</b> B1 all-different (no repetir actividad en la semana) · B2 máximo una por categoría por día. <b>Algoritmo:</b> backtracking con forward checking y heurística MRV. Las preferencias son <b>restricciones blandas</b>: no filtran, puntúan (van a la utilidad)."},
+ {n:"PASO 3",t:"Sistema experto",tech:"Diapositiva 8: reglas SI–ENTONCES, encadenamiento hacia adelante",d:"Motor de inferencia con <b>forward chaining</b>: parte de hechos observados (viable, cupos, duración del hueco) y dispara R1–R7 en iteraciones hasta el punto de suspensión (igual que el ejemplo RESFRIADO/GRIPA/COVID de clase). Deriva hechos como <b>recomendable</b>, <b>afinidad_alta</b> y <b>match</b>. Las reglas deciden <b>qué entra</b> al ranking."},
+ {n:"PASO 4",t:"Utilidad y ranking",tech:"Russell & Norvig: agentes que maximizan una medida de desempeño",d:"<b>U(u,a,h) = 0.40·S + 0.25·T + 0.15·M + 0.20·C</b> (similitud de intereses, ajuste temporal, modalidad, compañía). La utilidad decide <b>en qué orden</b> queda lo factible, con desglose por componente: recomendación explicable, no caja negra. Los pesos son parámetros: la Fase 2 los calibra con feedback real."}
+];
+document.getElementById("pipe").innerHTML=STEPS.map((s,i)=>`<div class="step" data-i="${i}"><div class="num">${s.n}</div><div class="t">${s.t}</div><div class="tech">${s.tech.split(":")[0]}</div></div>`).join("");
+function selStep(i){document.querySelectorAll(".step").forEach(e=>e.classList.toggle("sel",e.dataset.i==i));
+  document.getElementById("stepDetail").innerHTML=`<h3>${STEPS[i].n}: ${STEPS[i].t}</h3><p style="font-size:.9rem">${STEPS[i].d}</p><p class="muted" style="margin-top:6px">Técnica del curso: ${STEPS[i].tech}</p>`;}
+document.querySelectorAll(".step").forEach(e=>e.onclick=()=>selStep(e.dataset.i));selStep(0);
+
+/* ================= UI: DEMO ================= */
+document.getElementById("userChips").innerHTML=USUARIOS.map((u,i)=>`<button class="chip ${i===0?"on":""}" data-i="${i}">${u.nombre} · ${u.carrera}</button>`).join("");
+document.querySelectorAll(".chip").forEach(c=>c.onclick=()=>{currentUser=+c.dataset.i;
+  document.querySelectorAll(".chip").forEach(x=>x.classList.toggle("on",x===c));renderDemo();});
+
+const SL=[["S","Similitud de intereses (afinidad)"],["T","Ajuste temporal (duración en el hueco)"],["M","Modalidad preferida"],["C","Compañía (matchmaking)"]];
+document.getElementById("sliders").innerHTML=SL.map(([k,l])=>`<div class="sl"><label>${l} <span id="v${k}">${PESOS[k].toFixed(2)}</span></label><input type="range" min="0" max="1" step="0.05" value="${PESOS[k]}" id="s${k}"></div>`).join("");
+SL.forEach(([k])=>document.getElementById("s"+k).oninput=e=>{PESOS[k]=+e.target.value;
+  document.getElementById("v"+k).textContent=PESOS[k].toFixed(2);renderDemo();});
+
+function renderDemo(){
+  const u=USUARIOS[currentUser], recs=recomendar(u);
+  let html=`<div class="card"><h3>${u.nombre} — ${u.carrera}</h3>
+    <p class="muted">Intereses: ${u.intereses.join(", ")} · Preferencia: ${u.durPref} min, ${u.modPref} · Clases: ${u.clases.map(c=>`${c[0]} ${fmt(c[1])}–${fmt(c[2])}`).join(" | ")}</p></div>`;
+  let recCount=0,descCount=0;
+  for(const r of recs){
+    const cab=`${r.h.dia} ${fmt(r.h.ini)}–${fmt(r.h.fin)} (${r.h.min} min)`;
+    if(!r.top.length){
+      const m=Object.entries(r.desc).map(([k,v])=>`${k} → ${v} act.`).join(", ");
+      descCount+=Object.values(r.desc).reduce((a,b)=>a+b,0);
+      html+=`<div class="gap"><h4>${cab}<span class="badge no">sin recomendación viable</span></h4>
+        <div class="body none"><b>El sistema explica por qué no recomienda:</b> ${m}.
+        Ninguna actividad del catálogo sobrevive a las restricciones duras en este hueco — el motor lo reporta en lugar de recomendar algo irrelevante.</div></div>`;
+      continue;
+    }
+    recCount+=r.top.length;
+    const rows=r.top.map((a,k)=>{
+      const p=a.parts,w=PESOS,sw=w.S+w.T+w.M+w.C;
+      const seg=[["s1","S",p[0][1]],["s2","T",p[1][1]],["s3","M",p[2][1]],["s4","C",p[3][1]]]
+        .map(([c,n,v])=>`<div class="${c}" style="width:${(w[n]*v/sw)*100}%"></div>`).join("");
+      const t0=colocacion(r.h,a);
+      const tr=`traza motor:\n${a.traza.map(t=>"✔ "+t+" → se agrega el hecho correspondiente").join("\n")}\n\nhechos: ${[...a.hechos].join(", ")}\ncompañeros viables en el hueco: ${a.nC}`;
+      return `<div class="rec"><div class="line1"><span class="name">#${k+1} ${a.nombre} <span class="tag">${a.id}</span><span class="muted">${a.categoria} · ${a.dur} min${t0!==null?" · "+fmt(t0):""}</span></span><span class="u">U=${a.util.toFixed(2)}</span></div>
+        <div class="bar">${seg}</div>
+        <div class="legend">U = ${w.S.toFixed(2)}·${p[0][1].toFixed(2)} + ${w.T.toFixed(2)}·${p[1][1].toFixed(2)} + ${w.M.toFixed(2)}·${p[2][1].toFixed(2)} + ${w.C.toFixed(2)}·${p[3][1].toFixed(2)} = <b>${a.util.toFixed(2)}</b> &nbsp;|&nbsp; <span style="color:#4f46e5">■</span> intereses <span style="color:#0ea5e9">■</span> tiempo <span style="color:#10b981">■</span> modalidad <span style="color:#f59e0b">■</span> compañía</div>
+        ${a.hechos.has("match")?`<span class="badge yes">match: afinidad alta + compañía en el hueco</span>`:""}
+        <details><summary>ver traza del motor de inferencia</summary><div class="trace">${tr}</div></details></div>`;
+    }).join("");
+    html+=`<div class="gap"><h4>${cab}<span>${r.top.length} opciones viables (top-3)</span></h4><div class="body">${rows}</div></div>`;
+  }
+  document.getElementById("gaps").innerHTML=html;
+  const nHuecos=recs.length;
+  document.getElementById("metrics").innerHTML=
+    `<div class="metric"><b>${nHuecos}</b>huecos detectados</div>
+     <div class="metric"><b>${recCount}</b>opciones viables en top-3</div>
+     <div class="metric"><b>${descCount}</b>descartes por restricción dura</div>
+     <div class="metric"><b>${nHuecos&&recs.filter(r=>r.top.length).length}/${nHuecos}</b>cobertura de huecos</div>`;
+}
+renderDemo();
+
+/* ================= UI: MATCH ================= */
+(function(){const p=emparejar();
+ document.getElementById("matchTable").innerHTML=`<table><tr><th>Par</th><th>Actividad propuesta</th><th>Horario</th><th>Similitud intereses</th><th>Score</th></tr>`+
+  p.map(x=>`<tr><td><b>${x.par}</b></td><td>${x.act}</td><td>${x.horario}</td><td>${x.sim.toFixed(2)}</td><td><b>${x.score.toFixed(2)}</b></td></tr>`).join("")+
+  `</table><p class="muted" style="margin-top:8px">${p.length} pares superan el umbral 0.50 con los datos sintéticos. En Fase 2, el componente de compañía de la utilidad se nutre de estos emparejamientos.</p>`;})();
+
+/* ================= NAV ================= */
+document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{
+  document.querySelectorAll("nav button").forEach(x=>x.classList.toggle("on",x===b));
+  document.querySelectorAll("section").forEach(s=>s.classList.toggle("on",s.id===b.dataset.t));
+});
+</script>
+</body>
+</html>
